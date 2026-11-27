@@ -33,7 +33,7 @@ jobs:
           python3 - << 'PYTHON' >> "$GITHUB_STEP_SUMMARY"
           import json, os
           wh = os.environ["WAREHOUSE"]
-          report = json.load(open{f"audit-{wh}.json", encoding="utf-8"})
+          report = json.load(open(f"audit-{wh}.json", encoding="utf-8"))
           print(f"## {wh}: {report['count']} drifted SKU(s)\n")
           print("| SKU | Issue | Expected | Actual |")
           print("|---|---|---|---|")
