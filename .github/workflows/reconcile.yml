@@ -1,0 +1,64 @@
+name: Stock reonciliation
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Audit behavior
+        required: true
+        type: choice
+        default: report
+        options:
+          -  report
+          - enforce
+
+permissions: 
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        warehouse: [north, south]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build report
+        run: python3 reconcile.py --warehouse ${{ matrix.warehouse }}
+
+      - name: Summarise
+        run: |
+          python3 - << 'PYTHON' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          wh = os.environ["WAREHOUSE"]
+          report = json.load(open{f"audit-{wh}.json", encoding="utf-8"})
+          print(f"## {wh}: {report['count']} drifted SKU(s)\n")
+          print("| SKU | Issue | Expected | Actual |")
+          print("|---|---|---|---|")
+          for f in report["findings"]: 
+              print(f"| {f['sku']} | {f['issue']} | {f['expected']} | {f['actual']} |")
+          PYTHON
+        env:
+          WAREHOUSE: ${{ matrix.warehouse }}
+      - name: Save report
+        uses: actions/upload-artifact@v7
+        with:
+          name: stock-audit-${{ matrix.warehouse }}
+          path: audit-${{ matrix.warehouse }}.json
+          if-no-files-found: error
+
+      - name: Enforce clean stock
+        if: inputs.mode == 'enforce'
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          wh = os.environ["WAREHOUSE"]
+          count = json.load(open(f"audit-{wh}.json", encoding="utf-8"))["count"]
+          if count: 
+              raise SystemExit(f"Inventory policy failed for {wh}: {count} drifted SKUs")
+          print(f"Inventory policy passed for {wh}: 0 drifted SKUs")
+          PYTHON
+        env: 
+          WAREHOUSE: ${{ matrix.warehouse }}
