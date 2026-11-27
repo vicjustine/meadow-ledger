@@ -43,7 +43,7 @@ def reconcile(warehouse: str) -> dict:
             issue = "within_tolerance" if delta <= allowed else "mismatch"
             findings.append({"sku": sku, "issue": issue, "expected": want, "actual": have, "delta": delta, "allowed": allowed})
 
-    drift = [f for f in findings if f["issue"]] != "within_tolerance"]
+    drift = [f for f in findings if f["issue"] != "within_tolerance"]
     return {"warehouse": warehouse, "count": len(drift), "findings": findings}
 
 def main() -> None: 
